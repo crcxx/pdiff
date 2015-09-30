@@ -2,7 +2,8 @@
 source "https://rubygems.org"
 
 gem 'hashdiff'
+gem 'nokogiri'
 
-group :development, :test do
-  gem 'rspec'
-end
+# group :development, :test do
+#   gem 'rspec'
+# end

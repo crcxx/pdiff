@@ -4,11 +4,12 @@ require 'time'
 require 'hashdiff'
 
 class MimiParser
-  REQUIRED_OPTIONS = [:csv, :dir, :mask]
+  # REQUIRED_OPTIONS = [:csv, :dir, :mask]
   HEADER_ROW = ['hostname', 'domain', 'username', 'password', 'dumped_by', 'dumped_at', 'imported_at', 'notes']
+  DEFAULT_CSV='pdiff.csv'
 
-  def self.REQUIRED_OPTIONS
-    REQUIRED_OPTIONS
+  def self.DEFAULT_CSV
+    DEFAULT_CSV
   end
 
   def self.clean(hash)
@@ -39,7 +40,6 @@ class MimiParser
         hash[:username]=a[0]
         hash[:domain]=a[1]
       end
-
       # return hash
     else
       # domain contains a value. is it already what we expect?
@@ -100,24 +100,18 @@ class MimiParser
     true
   end
 
-  def initialize(options)
-    missing = REQUIRED_OPTIONS.select { |param| options[param].nil? }
-    if not missing.empty?
-      raise "Missing options: #{missing.join(', ')}"
-    else
-      raise "Directory does not exist!" unless Dir.exist?(options[:dir])
-
-      @dir = options[:dir]
-      @mask = options[:mask]
-
-      @csv = options[:csv]
-      @diff = options[:diff]
-
-      @in_creds = Hash.new
-      @out_creds = Hash.new
-    end
+  def get_creds
+    read_csv
+    @in_creds
   end
 
+  def initialize
+    @csv = File.join(Dir.pwd, DEFAULT_CSV)
+    @csv = File.join(Dir.pwd, ENV["PDIFF_CSV"]) if ENV["PDIFF_CSV"]
+
+    @in_creds = Hash.new
+    @out_creds = Hash.new
+  end
 
   def read_csv
     if File.file?(@csv)
@@ -140,18 +134,20 @@ class MimiParser
     end
   end
 
-  def run
+  def run(dir,mask='*',diff=true)
+    raise "Directory not specified!" if dir.nil?
+    raise "Directory does not exist!" unless Dir.exists?(dir)
     pwd = Dir.pwd
 
     begin
       files = []
-      Dir.chdir(@dir)
+      Dir.chdir(dir)
 
       read_csv
 
       @out_creds = @in_creds.clone
 
-      Dir[@mask].select do |f|
+      Dir[mask].select do |f|
         files << f if File.file?(f)
       end
 
@@ -205,19 +201,19 @@ class MimiParser
 
           tmp_creds.each do |cred|
             unless cred.empty?
-                cred[:hostname] = hostname
-                cred[:imported_at] = Time.now.utc.iso8601
-                # TODO: add dumped_by
-                # TODO: add dumped_at
-                cred[:dumped_at] = file.atime.utc.iso8601
-                key = MimiParser.hash2key(cred)
+              cred[:hostname] = hostname
+              cred[:imported_at] = Time.now.utc.iso8601
+              # TODO: add dumped_by
+              # TODO: add dumped_at
+              cred[:dumped_at] = file.atime.utc.iso8601
+              key = MimiParser.hash2key(cred)
               @out_creds[key] = cred unless @out_creds.keys.include?(key)
             end
           end
         end
       end
 
-      puts HashDiff.diff(@in_creds, @out_creds) if @diff
+      puts HashDiff.diff(@in_creds, @out_creds) if diff
 
       write_csv
     rescue Exception => e

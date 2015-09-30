@@ -1,5 +1,4 @@
 #!/usr/bin/env ruby
-
 require 'rubygems'
 require 'bundler/setup'
 
@@ -9,9 +8,6 @@ require 'optparse'
 require 'ostruct'
 require 'set'
 
-## gems
-#require 'sqlite3'
-
 # local classes
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__)))
 $LOAD_PATH.unshift(File.join(File.dirname(__FILE__), 'lib'))
@@ -20,7 +16,7 @@ require 'mimi_parser'
 options = {}
 begin
   # set defaults
-  options[:csv] = 'pdiff.csv'
+  REQUIRED_OPTIONS = [:dir]
   options[:mask] = '*'
   options[:diff] = false
 
@@ -36,14 +32,10 @@ Purpose:
 
 Examples:
 
-  pdiff.rb --mask='*mk20*' --dir='tmp' --csv='tmp/example.csv'
+  PDIFF_CSV='tmp/example.csv' pdiff.rb --mask='*mk20*' --dir='tmp'
 
 Usage: pdiff.rb [options]
     TXT
-    opts.on(:OPTIONAL, "--csv", "(Optional) Location of CSV file. Default: 'pdiff.csv'") do |o|
-      # set path here as libs are not in same location
-      options[:csv] = File.expand_path(o)
-    end
 
     opts.on(:REQUIRED, "--dir", "Directory of mimikatz output for combining") do |o|
       # set path here as libs are not in same location
@@ -73,15 +65,14 @@ Usage: pdiff.rb [options]
     end
   end
   optparse.parse!
-  # puts options.inspect
 
-  missing = MimiParser.REQUIRED_OPTIONS.select { |param| options[param].nil? }
+  missing = REQUIRED_OPTIONS.select { |param| options[param].nil? }
   if not missing.empty?
     [optparse, "Missing options: #{missing.join(', ')}"].each { |s| puts s; puts }
     exit
   end
-  mimi=MimiParser.new(options)
-  mimi.run
+  mimi=MimiParser.new
+  mimi.run options[:dir], options[:mask], options[:diff]
 rescue OptionParser::InvalidOption, OptionParser::MissingArgument
   puts $!.to_s
   puts optparse
